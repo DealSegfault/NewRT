@@ -1,0 +1,6 @@
+CoffeeCup
+*.o
+*.a
+.D*
+*.dSYM
+libft
