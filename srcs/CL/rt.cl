@@ -5,6 +5,8 @@
 
 # define DEBUG_CONDITION get_global_id(0) == 500 && get_global_id(1) == 500
 
+# define FLOOR_INC (int[9]){1, 2, 4, 8, 16, 32, 64, 128, 256}
+
 # define SIZE_OF_6_STAGE_TREE (1 + 2 + 4 + 8 + 16 + 32 + 64)
 # define SIZE_OF_5_STAGE_TREE (1 + 2 + 4 + 8 + 16 + 32)
 # define SIZE_OF_4_STAGE_TREE (1 + 2 + 4 + 8 + 16)
@@ -13,9 +15,9 @@
 # define SIZE_OF_1_STAGE_TREE (1 + 2)
 # define SIZE_OF_0_STAGE_TREE (1)
 
-# define MAX_FLOOR_OF_TREE 6
+# define MAX_FLOOR_OF_TREE 4
 # define SIZE_OF_TREE SIZE_OF_6_STAGE_TREE
-# define D_RAY (float3){0.003, 0.003, 0.003}
+# define D_RAY (float3){0.0005, 0.0005, 0.0005}
 
 static void		put_pixel(__global uint* pixels, \
 				const t_yx pixel, const t_yx size, const int color)
@@ -222,7 +224,7 @@ static void		fill_tree(const t_scene *scene, const t_ray *ray, t_node *tree)
 	for (etage = 0; etage < MAX_FLOOR_OF_TREE; etage++)
 	{
 		node = 0;
-		for (end = powr(2.0, etage); node < end; node++)
+		for (end = FLOOR_INC[etage]; node < end; node++)
 		{
 			act_node = &tree[end - 1 + node];
 			if (act_node->active != 0)
@@ -253,10 +255,6 @@ static void		fill_tree(const t_scene *scene, const t_ray *ray, t_node *tree)
 								record.object_transparency,
 								(t_ray){record.point + new_ray * D_RAY, new_ray}
 							};
-						/*if (DEBUG_CONDITION)
-						{
-							printf("intersection pos : %lf %lf %lf\nlength : %lf\nray_info : %lf %lf %lf\n", record.point.x, record.point.y, record.point.z, length(((t_sphere *)obj)->center - record.point), new_ray.x, new_ray.y, new_ray.z);
-						}*/
 					}
 				}
 				else
@@ -292,7 +290,7 @@ static void		resolve_tree(const t_scene *scene, t_node *tree)
 	for (etage = MAX_FLOOR_OF_TREE; etage >= 0; etage--)
 	{
 		node = 0;
-		for (end = (int)powr(2.0, etage); node < end; node++)
+		for (end = FLOOR_INC[etage]; node < end; node++)
 		{
 			act = &tree[end + node - 1];
 			if (act->active != 0)
@@ -319,8 +317,6 @@ static void		resolve_tree(const t_scene *scene, t_node *tree)
 				color += act->res_color * (float3)ret;
 				color *= 1 - clamp((int)(reflection - transparency), (int)0, (int)1);//(float3)0.5;
 				color = clamp(color, (float3)0, act->object_color);
-				if (DEBUG_CONDITION)
-					printf("%lf %lf %lf\n", color.x, color.y, color.z);
 				act->res_color = color;
 			}
 		}
@@ -395,8 +391,6 @@ __kernel void	core(__global uint* pixels, __constant t_cam *cam)
 	t_color			color;
 	t_vector		res;
 
-	if (DEBUG_CONDITION)
-		printf("\nDraw %lf %lf %lf\n", ray.direction.x, ray.direction.y, ray.direction.z);
 	fill_tree(&scene, &ray, binary_tree);
 	resolve_tree(&scene, binary_tree);
 	res = binary_tree[0].res_color;
