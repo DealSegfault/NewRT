@@ -13,7 +13,7 @@
 # define SIZE_OF_1_STAGE_TREE (1 + 2)
 # define SIZE_OF_0_STAGE_TREE (1)
 
-# define MAX_FLOOR_OF_TREE 4
+# define MAX_FLOOR_OF_TREE 6
 # define SIZE_OF_TREE SIZE_OF_6_STAGE_TREE
 # define D_RAY (float3){0.003, 0.003, 0.003}
 
@@ -38,10 +38,10 @@ static t_vector		light_hit_object(const t_scene *scene, t_ray ray)
 		if (hit_sphere(&scene->spheres[i], &ray, &record))
 			if (record.t < vector_length)
 			{
-				if (scene->spheres[i].material.transparency == 0)
+				if (record.object_transparency == 0)
 					return ((float3)0);
 				else
-					ratio -= scene->spheres[i].material.color * (float3)obj->material.transparency;
+					ratio -= record.object_color * (float3)record.object_transparency;
 			}
 	return (ratio);
 }
@@ -115,7 +115,7 @@ static t_vector		light_coefficent(const t_scene *scene, const t_material *materi
 		angle = dot(record->normal, normalize(ray.direction));
 		hit_color_ratio = diffuse_light(hit_color_ratio, angle, material->diffuse);
 		hit_color_ratio = clamp(hit_color_ratio, (float3){0, 0, 0}, scene->lights[i].color);
-		hit_color_ratio = clamp(hit_color_ratio, (float3){0, 0, 0}, material->color);
+		hit_color_ratio = clamp(hit_color_ratio, (float3){0, 0, 0}, record->object_color);
 		hit_color_ratio *= (float3){scene->lights[i].intensity,
 									scene->lights[i].intensity,
 									scene->lights[i].intensity};
@@ -174,7 +174,7 @@ t_vector refract(const t_vector ray, const t_vector normal, const float refracti
 	float k = 1 - eta * eta * (1 - cosi * cosi);
 	return (k < 0 ? (float3)0 : normalize((float3)eta * ray + (float3)(eta * cosi - sqrt(k)) * n));
 }
-
+/*
 static t_vector		get_color(const t_scene *scene, const t_ray *ray)
 {
 	t_hit		record;
@@ -197,7 +197,7 @@ static t_vector		get_color(const t_scene *scene, const t_ray *ray)
 	else
 		return ((float3)0xaa);
 }
-
+*/
 static void		fill_tree(const t_scene *scene, const t_ray *ray, t_node *tree)
 {
 	t_obj		*obj;
@@ -231,26 +231,26 @@ static void		fill_tree(const t_scene *scene, const t_ray *ray, t_node *tree)
 				if (obj)
 				{
 					act_node->res_color = light_coefficent(scene, &obj->material, &record, &act_node->new_ray);
-					act_node->object_color = obj->material.color;
+					act_node->object_color = record.object_color;
 					next_node = &tree[end * 2 - 1 + node * 2];
-					if (obj->material.reflectivity != 0)
+					if (record.object_reflection != 0)
 					{
 						new_ray = reflect(act_node->new_ray.direction, record.normal);
 						next_node[0] = (t_node){1,
 							(float3)0,
 							(float3)0,
-							obj->material.reflectivity,
+							record.object_reflection,
 							(t_ray){record.point + new_ray * D_RAY, new_ray}
 						};
 					}
-					if (obj->material.transparency != 0)
+					if (record.object_transparency != 0)
 					{
 						new_ray = refract(act_node->new_ray.direction + D_RAY, record.normal, obj->material.refractivity);
 						if (new_ray.x != 0 || new_ray.y != 0 || new_ray.z != 0)
 							next_node[1] = (t_node){1,
 								(float3)0,
 								(float3)0,
-								obj->material.transparency,
+								record.object_transparency,
 								(t_ray){record.point + new_ray * D_RAY, new_ray}
 							};
 						/*if (DEBUG_CONDITION)
@@ -410,5 +410,5 @@ __kernel void	core(__global uint* pixels, __constant t_cam *cam)
 		color.color = 0x00000FF;
 	put_pixel(pixels, pixel, size, color.color);
 }
-//asaaasdsasdadabafasdasaasdsdadasdaasdaasddbewbhefeasdaasdaa
-//asadasdasddqweasasdaasdadsasdasdddi
+//asaaasdsasdadabafasdasaasdsdadasdaasdaasddbewbhefeasdaasdaasda
+//asasdadasdasddqweasasdaasdadsasdasdddi

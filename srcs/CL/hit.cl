@@ -40,6 +40,9 @@ int			hit_sphere(const void *sphere, const t_ray *ray, t_hit *record)
 		record->normal = normalize(((t_sphere*)sphere)->center - record->point);
 	else
 		record->normal = normalize(record->point - ((t_sphere*)sphere)->center);
+	record->object_color = ((t_sphere *)sphere)->material.color;
+	record->object_reflection = ((t_sphere *)sphere)->material.reflectivity;
+	record->object_transparency = ((t_sphere *)sphere)->material.transparency;
 	return (1);
 }
 

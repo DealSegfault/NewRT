@@ -109,8 +109,8 @@ typedef struct			s_hit
 	t_vector			point;
 	t_vector			normal;
 	t_vector			object_color;
-	t_vector			object_reflection;
-	t_vector			object_tranparency;
+	float				object_reflection;
+	float				object_transparency;
 }						t_hit;
 
 typedef struct			s_node
