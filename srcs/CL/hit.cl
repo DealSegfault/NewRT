@@ -36,9 +36,9 @@ int			hit_sphere(const void *sphere, const t_ray *ray, t_hit *record)
 	record->t = t;
 	record->point = ray->origin + t * ray->direction;
 	//BUMP MAP
-//	if (length(ray->origin - ((t_sphere*)sphere)->center) < ((t_sphere*)sphere)->radius)
-//		record->normal = -normalize(record->point - ((t_sphere*)sphere)->center);
-//	else
+	if (length(ray->origin - ((t_sphere*)sphere)->center) < ((t_sphere*)sphere)->radius)
+		record->normal = normalize(((t_sphere*)sphere)->center - record->point);
+	else
 		record->normal = normalize(record->point - ((t_sphere*)sphere)->center);
 	return (1);
 }

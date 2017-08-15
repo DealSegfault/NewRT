@@ -108,11 +108,15 @@ typedef struct			s_hit
 	float				delta;
 	t_vector			point;
 	t_vector			normal;
+	t_vector			object_color;
+	t_vector			object_reflection;
+	t_vector			object_tranparency;
 }						t_hit;
 
 typedef struct			s_node
 {
 	char				active;
+	t_vector			object_color;
 	t_vector			res_color;
 	float				power;
 	t_ray				new_ray;

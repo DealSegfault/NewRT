@@ -5,14 +5,15 @@
 
 # define DEBUG_CONDITION get_global_id(0) == 500 && get_global_id(1) == 500
 
-# define SIZE_OF_6_STAGE_TREE (1 + 2 + 4 + 8 + 16 + 32)
-# define SIZE_OF_5_STAGE_TREE (1 + 2 + 4 + 8 + 16)
-# define SIZE_OF_4_STAGE_TREE (1 + 2 + 4 + 8)
-# define SIZE_OF_3_STAGE_TREE (1 + 2 + 4)
-# define SIZE_OF_2_STAGE_TREE (1 + 2)
-# define SIZE_OF_1_STAGE_TREE (1)
+# define SIZE_OF_6_STAGE_TREE (1 + 2 + 4 + 8 + 16 + 32 + 64)
+# define SIZE_OF_5_STAGE_TREE (1 + 2 + 4 + 8 + 16 + 32)
+# define SIZE_OF_4_STAGE_TREE (1 + 2 + 4 + 8 + 16)
+# define SIZE_OF_3_STAGE_TREE (1 + 2 + 4 + 8)
+# define SIZE_OF_2_STAGE_TREE (1 + 2 + 4)
+# define SIZE_OF_1_STAGE_TREE (1 + 2)
+# define SIZE_OF_0_STAGE_TREE (1)
 
-# define MAX_FLOOR_OF_TREE 6
+# define MAX_FLOOR_OF_TREE 4
 # define SIZE_OF_TREE SIZE_OF_6_STAGE_TREE
 # define D_RAY (float3){0.003, 0.003, 0.003}
 
@@ -146,11 +147,32 @@ static t_vector reflect(t_vector ray, t_vector normal)
 		return (normalize(ray - (float3){2.0f, 2.0f, 2.0f} * dot(ray, normal) * normal));
 }
 
+/*
 static t_vector refract(t_vector ray, t_vector normal, float refraction)
 {
 	const float cosI = -dot(normal, ray);
 	const float cosT2 = 1.0f - refraction * refraction * (1.0f - cosI * cosI);
 	return (normalize((refraction * ray) + (refraction * cosI - sqrt(cosT2)) * normal));
+}*/
+t_vector refract(const t_vector ray, const t_vector normal, const float refraction)
+{
+	float cosi = clamp((float)-1, (float)1, (float)dot(ray, normal));
+	float etai = 1;
+	float etat = refraction;
+	float tmp;
+	t_vector n = normal;
+	if (cosi < 0)
+		cosi = -cosi;
+	else
+	{
+		tmp = etai;
+		etai = etat;
+		etat = tmp;
+		n = -normal;
+	}
+	float eta = etai / etat;
+	float k = 1 - eta * eta * (1 - cosi * cosi);
+	return (k < 0 ? (float3)0 : normalize((float3)eta * ray + (float3)(eta * cosi - sqrt(k)) * n));
 }
 
 static t_vector		get_color(const t_scene *scene, const t_ray *ray)
@@ -203,17 +225,19 @@ static void		fill_tree(const t_scene *scene, const t_ray *ray, t_node *tree)
 		for (end = powr(2.0, etage); node < end; node++)
 		{
 			act_node = &tree[end - 1 + node];
-			if (act_node->active == 1)
+			if (act_node->active != 0)
 			{
 				obj = get_object(scene, &act_node->new_ray, &record);
 				if (obj)
 				{
 					act_node->res_color = light_coefficent(scene, &obj->material, &record, &act_node->new_ray);
+					act_node->object_color = obj->material.color;
 					next_node = &tree[end * 2 - 1 + node * 2];
 					if (obj->material.reflectivity != 0)
 					{
 						new_ray = reflect(act_node->new_ray.direction, record.normal);
 						next_node[0] = (t_node){1,
+							(float3)0,
 							(float3)0,
 							obj->material.reflectivity,
 							(t_ray){record.point + new_ray * D_RAY, new_ray}
@@ -222,21 +246,30 @@ static void		fill_tree(const t_scene *scene, const t_ray *ray, t_node *tree)
 					if (obj->material.transparency != 0)
 					{
 						new_ray = refract(act_node->new_ray.direction + D_RAY, record.normal, obj->material.refractivity);
-						if (dot(new_ray, record.normal) < 0)
+						if (new_ray.x != 0 || new_ray.y != 0 || new_ray.z != 0)
 							next_node[1] = (t_node){1,
+								(float3)0,
 								(float3)0,
 								obj->material.transparency,
 								(t_ray){record.point + new_ray * D_RAY, new_ray}
 							};
-						if (DEBUG_CONDITION)
+						/*if (DEBUG_CONDITION)
 						{
-							
-							printf("intersection pos : %lf %lf %lf\nlength : %lf\n", record.point.x, record.point.y, record.point.z, length(((t_sphere *)obj)->center - record.point));
-						}
+							printf("intersection pos : %lf %lf %lf\nlength : %lf\nray_info : %lf %lf %lf\n", record.point.x, record.point.y, record.point.z, length(((t_sphere *)obj)->center - record.point), new_ray.x, new_ray.y, new_ray.z);
+						}*/
 					}
 				}
 				else
-					act_node->res_color = (float3)act_node->new_ray.direction * (float3){0xFF, 0xFF, 0};
+				{
+					act_node->res_color = (float3)act_node->new_ray.direction * (float3){0xFF, 0xFF, 0xFF};
+					if (((int)(act_node->new_ray.direction.y * 8) % 2
+						& (int)(8 * act_node->new_ray.direction.x) % 2
+						& (int)(8 * act_node->new_ray.direction.z) % 2))
+						act_node->res_color = (float3)0;
+					else
+						act_node->res_color = (float3)0xFF;
+					act_node->object_color = act_node->res_color;
+				}
 			}
 		}
 	}
@@ -262,28 +295,32 @@ static void		resolve_tree(const t_scene *scene, t_node *tree)
 		for (end = (int)powr(2.0, etage); node < end; node++)
 		{
 			act = &tree[end + node - 1];
-			if (act->active)
+			if (act->active != 0)
 			{
 				color = (float3)0;
 				reflection = 0;
 				transparency = 0;
 				lower_node = &tree[end * 2 + node * 2 - 1];
-				if (lower_node[0].active)
+				reflection = lower_node[0].power;
+				if (lower_node[0].active == 1)
 				{
-					reflection = lower_node[0].power;
 					node1 = (float3)lower_node[0].res_color * (float3)reflection;
 					color += clamp(node1, (float3)0, act->res_color);
 				}
-				if (lower_node[1].active)
+				transparency = lower_node[1].power;
+				if (lower_node[1].active == 1)
 				{
-					transparency = lower_node[1].power;
 					node2 = (float3)lower_node[1].res_color * (float3)transparency;
-					color += clamp(node2, (float3)0, act->res_color);
+					color += clamp(node2, (float3)0, act->object_color);
 				}
+				else
+					node2 = (float3)0xFF;
 				ret = 2 - (transparency + reflection);
 				color += act->res_color * (float3)ret;
-				color *= (float3)0.5;
-				color = clamp(color,(float3)0, act->res_color);
+				color *= 1 - clamp((int)(reflection - transparency), (int)0, (int)1);//(float3)0.5;
+				color = clamp(color, (float3)0, act->object_color);
+				if (DEBUG_CONDITION)
+					printf("%lf %lf %lf\n", color.x, color.y, color.z);
 				act->res_color = color;
 			}
 		}
@@ -313,7 +350,7 @@ static t_scene	tmp_init_scene(void)
 	t_scene			scene;
 
 	bzero(&scene, sizeof(t_scene));
-	base_material = (t_material){(float3){0xFF, 0xFF, 0xFF}, 1, 1, 12, 0, 1, 1.8, 0, 0, 0, 0, 0, 0};
+	base_material = (t_material){(float3){0xFF, 0xFF, 0xFF}, 1, 1, 12, 0.8, 0.8, 1.3, 0, 0, 0, 0, 0, 0};
 	scene.nb_sphere = 6;
 	scene.ambient = (float3){20, 20, 20};
 	scene.spheres[0] = (t_sphere){base_material, {0, 0, -10}, 4};
@@ -331,19 +368,18 @@ static t_scene	tmp_init_scene(void)
 
 	scene.nb_light = 4;
 	scene.nb_sphere = 4;
-	scene.spheres[0] = (t_sphere){base_material, {30, 12, 10}, 10};
+	scene.spheres[0] = (t_sphere){base_material, {0, 0, 10}, 10};
 	scene.spheres[0].material.color = (float3){255, 255, 255};
-	scene.spheres[1] = (t_sphere){base_material, {0, 8, 20}, 6};
+	scene.spheres[1] = (t_sphere){base_material, {0, 8, 12}, 6};
 	scene.spheres[1].material.color = (float3){255, 255, 0};
-	scene.spheres[1].material.transparency = 0;;
-	scene.spheres[2] = (t_sphere){base_material, {0, 10, 30}, 3};
+	scene.spheres[2] = (t_sphere){base_material, {0, 15, 8}, 3};
 	scene.spheres[2].material.color = (float3){255, 0, 255};
-	scene.spheres[3] = (t_sphere){base_material, {0, 10, 50}, 1};
+	scene.spheres[3] = (t_sphere){base_material, {0, 20, 10}, 1};
 	scene.spheres[3].material.color = (float3){0, 255, 255};
 	scene.lights[0] = (t_light){{0, 10, 40}, 1, {0xFF, 0xFF, 0xFF}, 0, {0, 0, 1}, 0};
-	scene.lights[1] = (t_light){{0, 10, 60}, 1, {0xFF, 0xFF, 0xFF}, 0, {0, 0, 1}, 0};
-	scene.lights[2] = (t_light){{-20, -10, 20}, 1, {0xFF, 0xFF, 0xFF}, 0, {0, 0, 1}, 0};
-	scene.lights[3] = (t_light){{-20, -10, 40}, 1, {0xFF, 0xFF, 0xFF}, 0, {0, 0, 1}, 0};
+	scene.lights[1] = (t_light){{0, 10, 60}, 1, {0xFF, 0, 0xFF}, 0, {0, 0, 1}, 0};
+	scene.lights[2] = (t_light){{-20, -10, 20}, 1, {0, 0xFF, 0xFF}, 0, {0, 0, 1}, 0};
+	scene.lights[3] = (t_light){{-20, -10, 40}, 1, {0xFF, 0, 0}, 0, {0, 0, 1}, 0};
 	return (scene);
 }
 
@@ -359,8 +395,8 @@ __kernel void	core(__global uint* pixels, __constant t_cam *cam)
 	t_color			color;
 	t_vector		res;
 
-	if (pixel.x == size.x / 2 - 1 && pixel.y == size.y / 2 - 1)
-		printf("\nDraw %lf\n", ray.origin.x);
+	if (DEBUG_CONDITION)
+		printf("\nDraw %lf %lf %lf\n", ray.direction.x, ray.direction.y, ray.direction.z);
 	fill_tree(&scene, &ray, binary_tree);
 	resolve_tree(&scene, binary_tree);
 	res = binary_tree[0].res_color;
@@ -374,5 +410,5 @@ __kernel void	core(__global uint* pixels, __constant t_cam *cam)
 		color.color = 0x00000FF;
 	put_pixel(pixels, pixel, size, color.color);
 }
-//asaaasdsasdadabafasdasasdadasdaasdaasddbewbhefeasdaasdaa
-//asasddqweasasdaasdadsasdddi
+//asaaasdsasdadabafasdasaasdsdadasdaasdaasddbewbhefeasdaasdaa
+//asadasdasddqweasasdaasdadsasdasdddi
