@@ -107,6 +107,7 @@ typedef struct			s_hit
 	float				t;
 	float				delta;
 	t_vector			point;
+	t_vector			object_normal;
 	t_vector			normal;
 	t_vector			object_color;
 	float				object_reflection;

@@ -15,7 +15,7 @@
 # define SIZE_OF_1_STAGE_TREE (1 + 2)
 # define SIZE_OF_0_STAGE_TREE (1)
 
-# define MAX_FLOOR_OF_TREE 4
+# define MAX_FLOOR_OF_TREE 5
 # define SIZE_OF_TREE SIZE_OF_6_STAGE_TREE
 # define D_RAY (float3){0.0005, 0.0005, 0.0005}
 
@@ -149,13 +149,6 @@ static t_vector reflect(t_vector ray, t_vector normal)
 		return (normalize(ray - (float3){2.0f, 2.0f, 2.0f} * dot(ray, normal) * normal));
 }
 
-/*
-static t_vector refract(t_vector ray, t_vector normal, float refraction)
-{
-	const float cosI = -dot(normal, ray);
-	const float cosT2 = 1.0f - refraction * refraction * (1.0f - cosI * cosI);
-	return (normalize((refraction * ray) + (refraction * cosI - sqrt(cosT2)) * normal));
-}*/
 t_vector refract(const t_vector ray, const t_vector normal, const float refraction)
 {
 	float cosi = clamp((float)-1, (float)1, (float)dot(ray, normal));
@@ -176,30 +169,7 @@ t_vector refract(const t_vector ray, const t_vector normal, const float refracti
 	float k = 1 - eta * eta * (1 - cosi * cosi);
 	return (k < 0 ? (float3)0 : normalize((float3)eta * ray + (float3)(eta * cosi - sqrt(k)) * n));
 }
-/*
-static t_vector		get_color(const t_scene *scene, const t_ray *ray)
-{
-	t_hit		record;
-	t_sphere	*obj;
-	t_vector	coefficient;
-	t_ray		new_ray;
 
-	if ((obj = get_object(scene, ray, &record)) != 0)
-	{
-		coefficient = light_coefficent(scene, &obj->material, &record, ray);
-		if (obj->material.reflectivity != 0)
-		{
-			new_ray.direction = reflect(ray->direction, record.normal);
-			new_ray.origin = record.point + new_ray.direction * D_RAY;
-			if ((obj = get_object(scene, &new_ray, &record)))
-				coefficient = light_coefficent(scene, &obj->material, &record, &new_ray);
-		}
-		return (coefficient);
-	}
-	else
-		return ((float3)0xaa);
-}
-*/
 static void		fill_tree(const t_scene *scene, const t_ray *ray, t_node *tree)
 {
 	t_obj		*obj;
@@ -237,7 +207,7 @@ static void		fill_tree(const t_scene *scene, const t_ray *ray, t_node *tree)
 					next_node = &tree[end * 2 - 1 + node * 2];
 					if (record.object_reflection != 0)
 					{
-						new_ray = reflect(act_node->new_ray.direction, record.normal);
+						new_ray = reflect(act_node->new_ray.direction, record.object_normal);
 						next_node[0] = (t_node){1,
 							(float3)0,
 							(float3)0,
@@ -346,7 +316,7 @@ static t_scene	tmp_init_scene(void)
 	t_scene			scene;
 
 	bzero(&scene, sizeof(t_scene));
-	base_material = (t_material){(float3){0xFF, 0xFF, 0xFF}, 1, 1, 12, 0.8, 0.8, 1.3, 0, 0, 0, 0, 0, 0};
+	base_material = (t_material){(float3){0xFF, 0xFF, 0xFF}, 1, 1, 12, 0.6, 0.2, 1.3, 0, 0, 0, 0, 0, 0};
 	scene.nb_sphere = 6;
 	scene.ambient = (float3){20, 20, 20};
 	scene.spheres[0] = (t_sphere){base_material, {0, 0, -10}, 4};
@@ -405,4 +375,4 @@ __kernel void	core(__global uint* pixels, __constant t_cam *cam)
 	put_pixel(pixels, pixel, size, color.color);
 }
 //asaaasdsasdadabafasdasaasdsdadasdaasdaasddbewbhefeasdaasdaasda
-//asasdadasdasddqweasasdaasdadsasdasdddi
+//asasasadasasdasdasasdasasdasasasdasdadddaddsdasddadasdasddqweasasdaasdadsasdasdddi

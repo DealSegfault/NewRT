@@ -14,6 +14,23 @@
 
 //pitmap to add
 
+float2		uv_mapping(float3 normal)
+{
+	float2		uv;
+
+	uv.x = atan2(normal.x, normal.z) / (2 * M_PI) + 0.5;
+	uv.y = normal.y * 0.5 + 0.5;
+	return (uv);
+}
+
+bool		is_pited_tmp(float2 uv)
+{
+	if (((int)(uv.x * 5) % 2) ^ ((int)(uv.y * 5) % 2))
+		return (0);
+	else
+		return (1);
+}
+
 int			hit_sphere(const void *sphere, const t_ray *ray, t_hit *record)
 {
 	const t_vector	RayToCenter = ray->origin - ((t_sphere*)sphere)->center;
@@ -36,10 +53,24 @@ int			hit_sphere(const void *sphere, const t_ray *ray, t_hit *record)
 	record->t = t;
 	record->point = ray->origin + t * ray->direction;
 	//BUMP MAP
-	if (length(ray->origin - ((t_sphere*)sphere)->center) < ((t_sphere*)sphere)->radius)
-		record->normal = normalize(((t_sphere*)sphere)->center - record->point);
-	else
+	record->object_normal = normalize(((t_sphere*)sphere)->center - record->point);
+	float2	uv = uv_mapping(record->object_normal);
+	if (is_pited_tmp(uv))
+		if (t1 < t2 && t1 > 0)
+		{
+			record->t = t1;
+			record->point = ray->origin + t * ray->direction;
+			record->object_normal = normalize(((t_sphere*)sphere)->center - record->point);
+			uv = uv_mapping(record->object_normal);
+			if (is_pited_tmp(uv))
+				return (0);
+		}
+		else
+			return (0);
+	if (t1 < t2 && t1 > 0)
 		record->normal = normalize(record->point - ((t_sphere*)sphere)->center);
+	else
+		record->normal = normalize(((t_sphere*)sphere)->center - record->point);
 	record->object_color = ((t_sphere *)sphere)->material.color;
 	record->object_reflection = ((t_sphere *)sphere)->material.reflectivity;
 	record->object_transparency = ((t_sphere *)sphere)->material.transparency;
