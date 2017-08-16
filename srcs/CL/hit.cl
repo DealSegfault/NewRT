@@ -31,6 +31,16 @@ bool		is_pited_tmp(float2 uv)
 		return (1);
 }
 
+# define DEBUG_CONDITION get_global_id(0) == 500 && get_global_id(1) == 500
+float3		bump_map_tmp(float2 uv, float3 normal)
+{
+	if (DEBUG_CONDITION)
+		printf("%lf %lf\n", uv.x, uv.y);
+	normal.y += (int)(uv.y * 1000) % 100 * 0.002;
+	normal.x += (int)(uv.x * 1000) % 100 * 0.002;
+	return (normalize(normal));
+}
+
 int			hit_sphere(const void *sphere, const t_ray *ray, t_hit *record)
 {
 	const t_vector	RayToCenter = ray->origin - ((t_sphere*)sphere)->center;
@@ -55,22 +65,34 @@ int			hit_sphere(const void *sphere, const t_ray *ray, t_hit *record)
 	//BUMP MAP
 	record->object_normal = normalize(((t_sphere*)sphere)->center - record->point);
 	float2	uv = uv_mapping(record->object_normal);
-	if (is_pited_tmp(uv))
-		if (t1 < t2 && t1 > 0)
+	if (is_pited_tmp(uv) && ((t_sphere *)sphere)->material.is_pited == 1)
+	{
+		if (t != t1)
+			return (0);
+		else
 		{
-			record->t = t1;
-			record->point = ray->origin + t * ray->direction;
-			record->object_normal = normalize(((t_sphere*)sphere)->center - record->point);
+			record->t = t2;
+			record->point = ray->origin + t2 * ray->direction;
+			record->normal = normalize(((t_sphere *)sphere)->center - record->point);
+			record->object_normal = normalize(((t_sphere *)sphere)->center - record->point);
 			uv = uv_mapping(record->object_normal);
 			if (is_pited_tmp(uv))
 				return (0);
 		}
-		else
-			return (0);
-	if (t1 < t2 && t1 > 0)
-		record->normal = normalize(record->point - ((t_sphere*)sphere)->center);
+	}
 	else
-		record->normal = normalize(((t_sphere*)sphere)->center - record->point);
+	{
+		record->object_normal = normalize(record->point - ((t_sphere *)sphere)->center);
+		if (t1 < t2 && t1 > 0)
+			record->normal = normalize(record->point - ((t_sphere*)sphere)->center);
+		else
+			record->normal = normalize(((t_sphere*)sphere)->center - record->point);
+	}
+	if (((t_sphere *)sphere)->material.is_bumped == 1)
+	{
+		record->normal = bump_map_tmp(uv, record->normal);
+		record->object_normal = bump_map_tmp(uv, record->object_normal);
+	}
 	record->object_color = ((t_sphere *)sphere)->material.color;
 	record->object_reflection = ((t_sphere *)sphere)->material.reflectivity;
 	record->object_transparency = ((t_sphere *)sphere)->material.transparency;

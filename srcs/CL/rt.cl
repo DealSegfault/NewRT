@@ -15,7 +15,7 @@
 # define SIZE_OF_1_STAGE_TREE (1 + 2)
 # define SIZE_OF_0_STAGE_TREE (1)
 
-# define MAX_FLOOR_OF_TREE 5
+# define MAX_FLOOR_OF_TREE 6
 # define SIZE_OF_TREE SIZE_OF_6_STAGE_TREE
 # define D_RAY (float3){0.0005, 0.0005, 0.0005}
 
@@ -316,7 +316,7 @@ static t_scene	tmp_init_scene(void)
 	t_scene			scene;
 
 	bzero(&scene, sizeof(t_scene));
-	base_material = (t_material){(float3){0xFF, 0xFF, 0xFF}, 1, 1, 12, 0.6, 0.2, 1.3, 0, 0, 0, 0, 0, 0};
+	base_material = (t_material){(float3){0xFF, 0xFF, 0xFF}, 1, 1, 12, 0, 0.3, 1.3, 1, 1, 1, -1, -1, -1};
 	scene.nb_sphere = 6;
 	scene.ambient = (float3){20, 20, 20};
 	scene.spheres[0] = (t_sphere){base_material, {0, 0, -10}, 4};
@@ -374,5 +374,5 @@ __kernel void	core(__global uint* pixels, __constant t_cam *cam)
 		color.color = 0x00000FF;
 	put_pixel(pixels, pixel, size, color.color);
 }
-//asaaasdsasdadabafasdasaasdsdadasdaasdaasddbewbhefeasdaasdaasda
-//asasasadasasdasdasasdasasdasasasdasdadddaddsdasddadasdasddqweasasdaasdadsasdasdddi
+//aasdsaaasdsasdadabafasdasaasdsdadasdaasdaasddbewbhefeasdaasdaasdasda
+//asasasasdddaasasasasdasasasddddddaddsdasddadasdasddqweasasdaasdadsasdasdddaasasddsasdasddi
